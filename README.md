@@ -88,6 +88,16 @@ AUTHENTICATION_BACKENDS = (
 )
 ```
 
+## urls.py
+
+```
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('accounts/', include('allauth.urls')),
+    path('oauth2/', include('janus.urls')),
+]
+```
+
 
 ## first run
 migrate your database

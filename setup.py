@@ -13,7 +13,11 @@ setup(
     zip_safe=False,
     packages=find_packages(),
     package_data={
-        "janus": ["janus/templates/*.html", ]},
+        "janus": ["janus/templates/*.html",
+                  "janus/templates/pages/*.html",
+                  "janus/templates/account/*.html",
+                  "janus/templates/registration/*.html",
+                  ]},
     install_requires=[
         "django>=2.0",
         "django-oauth-toolkit==1.2.0",
