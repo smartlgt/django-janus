@@ -2,7 +2,7 @@
 
 ## installation
 
-`pip3 install django-janus`
+`pip install git+https://github.com/smartlgt/django-janus#egg=janus`
 
 ## settings.py
 

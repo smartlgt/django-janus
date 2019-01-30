@@ -1,10 +1,12 @@
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from oauth2_provider.admin import Application, ApplicationAdmin
 
 from janus.models import Profile, ApplicationGroup, ProfilePermission, GroupPermission, ProfileGroup, \
     ApplicationExtension
 from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.models import User
+
+
 
 ###################################################
 # modify the system side admin user view to add an price group
@@ -29,8 +31,8 @@ class UserAdmin(UserAdmin):
 
 
 # Re-register UserAdmin
-admin.site.unregister(User)
-admin.site.register(User, UserAdmin)
+admin.site.unregister(get_user_model())
+admin.site.register(get_user_model(), UserAdmin)
 
 """
 class ProfileAdmin(admin.ModelAdmin):
