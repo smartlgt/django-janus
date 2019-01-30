@@ -1,6 +1,9 @@
-janus_pip
-templates
-venv
-manage.py
+*.sqlite3
+venv/
 .idea
-db.sqlite3
+.DS_Store
+
+__pycache__
+
+janus_pip
+manage.py

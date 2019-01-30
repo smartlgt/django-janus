@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <h1>Hello from janus</h1>
+    {% if request.user.is_authenticated %}
+    <h2>to {{ request.user }}</h2>
+    {% endif %}
+{% endblock content %}
