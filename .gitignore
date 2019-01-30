@@ -1,0 +1,6 @@
+janus_pip
+templates
+venv
+manage.py
+.idea
+db.sqlite3
