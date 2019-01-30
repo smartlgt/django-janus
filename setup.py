@@ -12,12 +12,7 @@ setup(
     url="http://github.com/smartlgt/janus_package",
     zip_safe=False,
     packages=find_packages(),
-    package_data={
-        "janus": ["janus/templates/*.html",
-                  "janus/templates/pages/*.html",
-                  "janus/templates/account/*.html",
-                  "janus/templates/registration/*.html",
-                  ]},
+    include_package_data=True,
     install_requires=[
         "django>=2.0",
         "django-oauth-toolkit==1.2.0",
