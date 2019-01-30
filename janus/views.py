@@ -1,10 +1,13 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect, render
 from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.models import AccessToken
 from oauth2_provider.views import ProtectedResourceView
+import json
 
-from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission
+from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission, \
+    ApplicationExtension
 
 
 class ProfileView(ProtectedResourceView):
@@ -62,12 +65,11 @@ class ProfileView(ProtectedResourceView):
                 can_authenticate = True
         return is_superuser, can_authenticate
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         if request.resource_owner:
             user = request.resource_owner
 
-
-            #set = user.accesstoken_set.all()
+            # set = user.accesstoken_set.all()
             access_token = request.GET.get('access_token', None)
             if not access_token:
                 access_token = request.META.get('HTTP_AUTHORIZATION', None)
@@ -90,20 +92,37 @@ class ProfileView(ProtectedResourceView):
                 if type(pp_authenticate) is bool:
                     can_authenticate = pp_authenticate
 
-            return JsonResponse(
+            json_data = (
                 {
                     'id': user.username,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
                     'name': user.first_name + ' ' + user.last_name,
                     'email': user.email,
-                    #ToDo: check the emails
-                    'email_verified': 'True',
+                    # ToDo: check the emails
+                    'email_verified': True,
                     'is_superuser': is_superuser,
                     'can_authenticate': can_authenticate
                 }
             )
+            json_data = self._replace_json_ids(json_data, token)
+
+            return JsonResponse(json_data)
+
         return self.error_response(OAuthToolkitError("No resource owner"))
+
+    @staticmethod
+    def _replace_json_ids(json_data, token):
+        try:
+            replace = ApplicationExtension.objects.get(application=token.application)
+        except ObjectDoesNotExist:
+            return json_data
+        if replace.profile_replace_json is not None:
+            replace_data = json.loads(replace.profile_replace_json)
+            for key, value in replace_data.items():
+                if key in json_data:
+                    json_data[value] = json_data.pop(key)
+        return json_data
 
 
 def index(request):
@@ -111,11 +130,12 @@ def index(request):
     args = {
     }
 
-
     return render(request, 'pages/index.html', args)
 
+
 def not_authorized(request):
-    return HttpResponse("Sorry, you are not authorized to access this application. Contact an admin if you think this is a mistake.")
+    return HttpResponse("Sorry, you are not authorized to access this application."
+                        " Contact an admin if you think this is a mistake.")
 
 
 def restart_authorize(request):

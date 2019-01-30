@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from oauth2_provider.models import Application
+
+import json
 
 
 class Profile(models.Model):
@@ -24,10 +27,9 @@ class Profile(models.Model):
         p.user = user
         p.save()
 
-        default_groups = ProfileGroup.objects.filter(default=True).all()
+        default_groups = ProfileGroup.objects.filter(default=True)
         if default_groups.exists():
-            p.group.add(default_groups)
-
+            p.group.add(default_groups.latest('id'))
         p.save()
 
 
@@ -64,7 +66,7 @@ class ProfilePermission(models.Model):
 
 
 class GroupPermission(models.Model):
-    """ 
+    """
         define default permissions for applications, can be overridden by a entry in the ApplicationPermission model
         additive override for the bool values
     """
@@ -82,3 +84,11 @@ class ApplicationExtension(models.Model):
     email_required = models.BooleanField(default=False)
     display_name = models.CharField(max_length=255, null=True, blank=True, default=None)
     link = models.URLField(default=None, blank=True, null=True)
+    profile_replace_json = models.TextField(null=True, blank=True, default=None)
+
+    def clean(self):
+        if self.profile_replace_json is not None:
+            try:
+                json.loads(self.profile_replace_json)
+            except ValueError:
+                raise ValidationError("profile replace json: Must be valid json")
