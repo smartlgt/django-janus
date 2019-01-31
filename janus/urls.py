@@ -19,5 +19,5 @@ urlpatterns = [
     url(r'^o/restart_authorize/$', views.restart_authorize, name="restart_authorize"),
 
     url('^accounts/', include('django.contrib.auth.urls')),
-    url(r'^', views.index, name='index'),
+    url(r'', views.index, name='index'),
 ]

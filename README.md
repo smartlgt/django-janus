@@ -131,9 +131,21 @@ custom profile endpoint, returns user profile information as json:
   "email": "mail@example.com",
   "email_verified": "True",
   "is_superuser": "False",
-  "can_authenticate": "True"
+  "can_authenticate": "True",
+  "groups": ["staff", "customer"]
 }
 ````
 
 ## configuration
 - navigate to `/admin/` to setup the OAuth2 uids and secrets.
+
+### setup a profile group and add permissions
+setup your first group, eg. default and set the default flag.
+all new user will be added to the default flag. for testing, you may need to add the default group for the first admin user by hand.
+
+as a second step you need to authorize your app by mapping a "Can authenticate" flag between the application and the new default group.
+see Group permissions for that.
+
+you can also add a single permission for a user without the need of generating groups. see: Profile permissions
+
+there is an option to provide Application groups for a application based on profiles or group permission these groups get returned to the application on the profile call.

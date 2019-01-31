@@ -47,7 +47,7 @@ class ApplicationGroup(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
     # the name will be returned as char to the application
     name = models.CharField(max_length=255)
-    description = models.TextField(default="")
+    description = models.TextField(default="", blank=True)
 
     def __str__(self):
         return self.name

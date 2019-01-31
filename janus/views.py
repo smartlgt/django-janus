@@ -12,7 +12,18 @@ from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermissi
 
 class ProfileView(ProtectedResourceView):
 
-    def get_group_permissions(self, user, token):
+
+    def get_profile_memberships(self, user):
+
+        all_profiles = Profile.objects.get(user=user).group.all()
+
+        # add the default groups by default
+        default_profile = ProfileGroup.objects.filter(default=True)
+        all_profiles = set(all_profiles | default_profile)
+
+        return list(all_profiles)
+
+    def get_group_permissions(self, user, application):
         """
         Validates the group permissions for a user given a token
         :param user:
@@ -25,14 +36,10 @@ class ProfileView(ProtectedResourceView):
         if not user.is_authenticated:
             return is_superuser, can_authenticate
 
-        all_groups = Profile.objects.get(user=user).group.all()
-
-        # add the default groups by default
-        default_groups = ProfileGroup.objects.filter(default=True)
-        all_groups = list(all_groups | default_groups)
+        all_groups = self.get_profile_memberships(user)
 
         for g in all_groups:
-            gp = GroupPermission.objects.filter(profile_group=g, application=token.application)
+            gp = GroupPermission.objects.filter(profile_group=g, application=application)
             if gp.count() == 0:
                 continue
             elif gp.count() == 1:
@@ -45,7 +52,7 @@ class ProfileView(ProtectedResourceView):
                 print('We have a problem')
         return is_superuser, can_authenticate
 
-    def get_personal_permissions(self, user, token):
+    def get_personal_permissions(self, user, application):
         """
         Validates the personal permissions for a user given a token
         :param user:
@@ -57,13 +64,63 @@ class ProfileView(ProtectedResourceView):
         if not user.is_authenticated:
             return is_superuser, can_authenticate
 
-        pp = ProfilePermission.objects.filter(profile__user=user, application=token.application).first()
+        pp = ProfilePermission.objects.filter(profile__user=user, application=application).first()
         if pp:
             if pp.is_superuser:
                 is_superuser = True
             if pp.can_authenticate:
                 can_authenticate = True
         return is_superuser, can_authenticate
+
+
+    def get_profile_group_memberships(self, user, application):
+        """
+        collect group names form user profile group memberships
+        :param user:
+        :param token:
+        :return:
+        """
+
+        all_profiles = self.get_profile_memberships(user)
+
+        group_list = set()
+
+        for g in all_profiles:
+            # get profile-group-permission object
+            gp = GroupPermission.objects.filter(profile_group=g, application=application)
+            for elem in gp:
+                groups = elem.groups.all()
+
+                for g in groups:
+                    # ensure only groups for this application can be returned
+                    if g.application == application:
+                        group_list.add(g.name)
+
+        return group_list
+
+
+    def get_profile_personal_memberships(self, user, application):
+        """
+        collect group names form user profile permission
+        :param user:
+        :param token:
+        :return:
+        """
+
+        profile_permissions = ProfilePermission.objects.filter(profile__user=user, application=application).first()
+
+        group_list = set()
+
+        if profile_permissions:
+            groups = profile_permissions.groups.all()
+
+            for g in groups:
+                # ensure only groups for this application can be returned
+                if g.application == application:
+                    group_list.add(g.name)
+
+        return group_list
+
 
     def get(self, request):
         if request.resource_owner:
@@ -80,10 +137,10 @@ class ProfileView(ProtectedResourceView):
             if not token:
                 return self.error_response(OAuthToolkitError("No access token"))
 
-            is_superuser, can_authenticate = self.get_group_permissions(token.user, token)
+            is_superuser, can_authenticate = self.get_group_permissions(token.user, token.application)
 
             # if set the personal settings overwrite the user settings
-            pp_superuser, pp_authenticate = self.get_personal_permissions(token.user, token)
+            pp_superuser, pp_authenticate = self.get_personal_permissions(token.user, token.application)
             if pp_superuser is not None:
                 if type(pp_superuser) is bool:
                     is_superuser = pp_superuser
@@ -91,6 +148,10 @@ class ProfileView(ProtectedResourceView):
             if pp_authenticate is not None:
                 if type(pp_authenticate) is bool:
                     can_authenticate = pp_authenticate
+
+            groups = set()
+            groups.union(self.get_profile_group_memberships(token.user, token.application))
+            groups.union(self.get_profile_personal_memberships(token.user, token.application))
 
             json_data = (
                 {
@@ -102,7 +163,8 @@ class ProfileView(ProtectedResourceView):
                     # ToDo: check the emails
                     'email_verified': True,
                     'is_superuser': is_superuser,
-                    'can_authenticate': can_authenticate
+                    'can_authenticate': can_authenticate,
+                    'groups': list(groups),
                 }
             )
             json_data = self._replace_json_ids(json_data, token)

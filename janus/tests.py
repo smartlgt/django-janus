@@ -1,13 +1,16 @@
 import json
 from datetime import timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils.timezone import now
 from oauth2_provider.models import Application, AccessToken, Grant
 
-from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission
+from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission, ApplicationGroup
+from janus.views import ProfileView
+
+User = get_user_model()
 
 
 class ProfileGeneration(TestCase):
@@ -70,9 +73,9 @@ class UserAuthenticationTest(TestCase):
 
     def test_not_authenticated(self):
         c = Client()
-        response = c.get('/')
+        response = c.get(reverse('index'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b'hello from janus')
+        self.assertIn('hello from janus'.lower(), response.content.decode('utf-8').lower())
 
     def test_authentication(self):
         response = self.client.login(username='bob', password='testjanus123')
@@ -81,9 +84,10 @@ class UserAuthenticationTest(TestCase):
     def test_authentication_2(self):
         c = Client()
         response = c.post(reverse('login'), dict(username='bob', password='testjanus123', response_type='http'))
-        response = c.get('/')
+        response = c.get(reverse('index'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b'hello from janus bob')
+        self.assertIn('hello from janus'.lower(), response.content.decode('utf-8').lower())
+        self.assertIn('to bob'.lower(), response.content.decode('utf-8').lower())
 
     def test_authenticate_bob(self):
         # authenticate the user
@@ -164,6 +168,95 @@ class UserAuthenticationTest(TestCase):
         print(data)
         self.assertEqual(data['id'], 'eve')
         self.assertTrue(data['is_superuser'])
+
+
+
+
+class ProfileViewTests(TestCase):
+    def setUp(self):
+        # generate some user
+        self.user_admin = User.objects.create(username='admin')
+        self.user_staff = User.objects.create(username='help-desk-user')
+        self.user_customer = User.objects.create(username='customer')
+
+        # init some profile groups
+        self.group_default = ProfileGroup.objects.create(name='default', default=True)
+        self.group_superuser = ProfileGroup.objects.create(name='superuser_group')
+        self.group_staff = ProfileGroup.objects.create(name='staff_group')
+        self.group_customer = ProfileGroup.objects.create(name='customer_group')
+
+        # init user profiles
+        Profile.create_default_profile(self.user_admin)
+        Profile.create_default_profile(self.user_staff)
+        Profile.create_default_profile(self.user_customer)
+
+        # some apps
+        self.application_one = Application.objects.create(user=None,
+                                                redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
+                                                client_type='confidential',
+                                                authorization_grant_type='authorization-code',
+                                                name='test', skip_authorization=True)
+        self.application_two = Application.objects.create(user=None,
+                                                redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
+                                                client_type='confidential',
+                                                authorization_grant_type='authorization-code',
+                                                name='test_all_superuser', skip_authorization=True)
+
+        # generate some application groups (the groups will be returned to the app on profile call)
+        staff_app_group = ApplicationGroup.objects.create(application=self.application_one,
+                                                                 name="django_user_staff",
+                                                                 description="staff")
+        customer_app_group = ApplicationGroup.objects.create(application=self.application_one,
+                                                                    name="django_customer",
+                                                                    description="customer")
+
+        app2_group1 = ApplicationGroup.objects.create(application=self.application_two,
+                                                                    name="group1")
+        app2_group2 = ApplicationGroup.objects.create(application=self.application_two,
+                                                                            name="group2")
+        app2_group3 = ApplicationGroup.objects.create(application=self.application_one,
+                                                                            name="group3")
+
+        # add app_groups to profile_groups iva (profile)group permissions
+        gp1 = GroupPermission.objects.create(profile_group=self.group_staff, application=self.application_one)
+        gp1.groups.add(staff_app_group)
+
+        gp2 = GroupPermission.objects.create(profile_group=self.group_staff, application=self.application_one)
+        gp2.groups.add(customer_app_group)
+
+
+        gp2 = GroupPermission.objects.create(profile_group=self.group_superuser, application=self.application_two)
+        gp2.groups.add(app2_group1, app2_group2, app2_group3) # group3 is not supposed in here, simulate human error
+
+
+
+    def test_profile_view_groups(self):
+        # check ProfileView
+        pv = ProfileView()
+
+        # add users to groups
+        self.user_staff.profile.group.add(self.group_staff)
+        self.user_staff.profile.group.add(self.group_customer)
+
+        list_group_names = pv.get_profile_group_memberships(self.user_staff, self.application_one)
+        self.assertIn("django_user_staff", list_group_names)
+        self.assertIn("django_customer", list_group_names)
+
+
+        list_empty_groups = pv.get_profile_group_memberships(self.user_customer, self.application_one)
+        self.assertAlmostEqual(len(list_empty_groups), 0)
+
+
+        # test super user has on app2 -> group1, group2
+        self.user_admin.profile.group.add(self.group_superuser)
+        list_two_not_three = pv.get_profile_group_memberships(self.user_admin, self.application_two)
+        self.assertIn("group1", list_two_not_three)
+        self.assertIn("group2", list_two_not_three)
+        self.assertNotIn("group3", list_two_not_three)
+        # also group3 is only linked to the wrong app so its also not present in the desired app
+        list_empty_again = pv.get_profile_group_memberships(self.user_admin, self.application_one)
+        self.assertAlmostEqual(len(list_empty_again), 0)
+
 
 
 
