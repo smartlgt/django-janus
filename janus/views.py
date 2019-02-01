@@ -122,6 +122,15 @@ class ProfileView(ProtectedResourceView):
         return group_list
 
 
+    def get_group_list(self, user, application):
+
+        groups = set()
+        groups = groups.union(self.get_profile_group_memberships(user, application))
+        groups = groups.union(self.get_profile_personal_memberships(user, application))
+
+        return list(groups)
+
+
     def get(self, request):
         if request.resource_owner:
             user = request.resource_owner
@@ -134,13 +143,15 @@ class ProfileView(ProtectedResourceView):
                     access_token = access_token.replace("Bearer ", "")
 
             token = AccessToken.objects.filter(token=access_token).first()
+            user = token.user
+            application = token.application
             if not token:
                 return self.error_response(OAuthToolkitError("No access token"))
 
-            is_superuser, can_authenticate = self.get_group_permissions(token.user, token.application)
+            is_superuser, can_authenticate = self.get_group_permissions(user, application)
 
             # if set the personal settings overwrite the user settings
-            pp_superuser, pp_authenticate = self.get_personal_permissions(token.user, token.application)
+            pp_superuser, pp_authenticate = self.get_personal_permissions(user, application)
             if pp_superuser is not None:
                 if type(pp_superuser) is bool:
                     is_superuser = pp_superuser
@@ -149,9 +160,7 @@ class ProfileView(ProtectedResourceView):
                 if type(pp_authenticate) is bool:
                     can_authenticate = pp_authenticate
 
-            groups = set()
-            groups.union(self.get_profile_group_memberships(token.user, token.application))
-            groups.union(self.get_profile_personal_memberships(token.user, token.application))
+            groups = self.get_group_list(user, application)
 
             json_data = (
                 {
@@ -164,7 +173,7 @@ class ProfileView(ProtectedResourceView):
                     'email_verified': True,
                     'is_superuser': is_superuser,
                     'can_authenticate': can_authenticate,
-                    'groups': list(groups),
+                    'groups': groups,
                 }
             )
             json_data = self._replace_json_ids(json_data, token)

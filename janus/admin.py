@@ -1,5 +1,9 @@
+import json
+
 from django.contrib import admin
 from django.contrib.auth import get_user_model
+from django.template import Template
+from fakeinline.datastructures import FakeFormSet, FakeInline, FakeForm
 from oauth2_provider.admin import Application, ApplicationAdmin
 
 from janus.models import Profile, ApplicationGroup, ProfilePermission, GroupPermission, ProfileGroup, \
@@ -19,10 +23,56 @@ class ProfileInline(admin.StackedInline):
     verbose_name_plural = 'Profile'
 
 
+###### extent admin for easy user debug
+
+class FakeFormNew(FakeForm):
+    def is_multipart(self):
+        return False
+
+class FakeFormSetNew(FakeFormSet):
+    form = FakeFormNew
+    empty_form = FakeFormNew
+
+class ApplicationGroupFormSet(FakeFormSetNew):
+    # this probably works, but usually you'd point it at a template file.
+    template = Template('''
+    <p>Debug applied application groups (save to see the update!):
+    {% for key, value in inline_admin_formset.formset.get_applications.items %}
+    <p>applicatio "{{ key }}":<br/>
+    {{ value }}
+    </p>
+    {% endfor %}
+    
+    
+    </p>
+    ''')
+
+    def get_applications(self):
+        user = self.instance
+
+        from janus.views import ProfileView
+        pv = ProfileView()
+
+        ret = {}
+
+        from oauth2_provider.models import Application as Application2
+
+        applications = Application2.objects.all()
+
+        for application in applications:
+            ret[application.name] = pv.get_group_list(user, application)
+
+        return ret
+
+
+class ApplicationGroups(FakeInline):
+    formset = ApplicationGroupFormSet
+
+
 # Define a new User admin
 # noinspection PyRedeclaration
 class UserAdmin(UserAdmin):
-    inlines = (ProfileInline,)
+    inlines = (ProfileInline, ApplicationGroups)
 
     list_display = UserAdmin.list_display + ('profile_groups',)
 
