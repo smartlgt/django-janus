@@ -121,6 +121,27 @@ class ProfileView(ProtectedResourceView):
 
         return group_list
 
+    def get_permissions(self, user, application):
+        """
+        return permissions according to application settings, personal overwrite and default values
+        :param user:
+        :param application:
+        :return:
+        """
+        is_superuser, can_authenticate = self.get_group_permissions(user, application)
+
+        # if set the personal settings overwrite the user settings
+        pp_superuser, pp_authenticate = self.get_personal_permissions(user, application)
+        if pp_superuser is not None:
+            if type(pp_superuser) is bool:
+                is_superuser = pp_superuser
+
+        if pp_authenticate is not None:
+            if type(pp_authenticate) is bool:
+                can_authenticate = pp_authenticate
+
+        return is_superuser, can_authenticate
+
 
     def get_group_list(self, user, application):
 
@@ -156,28 +177,6 @@ class ProfileView(ProtectedResourceView):
         return self.error_response(OAuthToolkitError("No resource owner"))
 
 
-    def user_get_personal_permissions(self, user, application):
-        """
-        return permissions according to application settings, personal overwrite and default values
-        :param user:
-        :param application:
-        :return:
-        """
-        is_superuser, can_authenticate = self.get_group_permissions(user, application)
-
-        # if set the personal settings overwrite the user settings
-        pp_superuser, pp_authenticate = self.get_personal_permissions(user, application)
-        if pp_superuser is not None:
-            if type(pp_superuser) is bool:
-                is_superuser = pp_superuser
-
-        if pp_authenticate is not None:
-            if type(pp_authenticate) is bool:
-                can_authenticate = pp_authenticate
-
-        return is_superuser, can_authenticate
-
-
     def generate_json_data(self, user, application):
         """
         generate the profile response json object
@@ -186,7 +185,7 @@ class ProfileView(ProtectedResourceView):
         :return:
         """
 
-        is_superuser, can_authenticate = self.get_personal_permissions(user, application)
+        is_superuser, can_authenticate = self.get_permissions(user, application)
 
         groups = self.get_group_list(user, application)
 
