@@ -141,8 +141,8 @@ class ApplicationAdminJanus(ApplicationAdmin):
     inlines = (ApplicationExtensionInline,)
 
     def email_required(self, object):
-        if object.applicationextension:
-            return object.applicationextension.email_required
+        if object.extension:
+            return object.extension.email_required
         return None
 
     email_required.boolean = True
