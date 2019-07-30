@@ -151,6 +151,18 @@ class ProfileViewCustom(ProfileView):
         return data
 ```
 
+## admin custom user class
+set `ALLAUTH_JANUS_ADMIN_CLASS = 'app.admin_custom.CustomUserAdmin'`
+
+```
+from janus.admin import JanusUserAdmin
+class CustomUserAdmin(JanusUserAdmin):
+
+    fieldsets = JanusUserAdmin.fieldsets + (
+        ("Custom Area", {'fields': ('some_field',)}),
+    )
+```
+
 ## configuration
 - navigate to `/admin/` to setup the OAuth2 uids and secrets.
 

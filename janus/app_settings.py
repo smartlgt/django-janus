@@ -1,10 +1,5 @@
 from django.conf import settings
 
-
-SOCIALACCOUNT_ENABLED = 'allauth.socialaccount' in settings.INSTALLED_APPS
-
-LOGIN_REDIRECT_URL = getattr(settings, 'LOGIN_REDIRECT_URL', '/')
-
-USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
-
 ALLAUTH_JANUS_PROFILE_VIEW = getattr(settings, 'ALLAUTH_JANUS_PROFILE_VIEW', 'janus.views.ProfileView')
+
+ALLAUTH_JANUS_ADMIN_CLASS = getattr(settings, 'ALLAUTH_JANUS_ADMIN_CLASS', 'janus.admin.JanusUserAdmin')

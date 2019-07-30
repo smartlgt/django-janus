@@ -3,9 +3,11 @@ import json
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.template import Template
+from django.utils.module_loading import import_string
 from fakeinline.datastructures import FakeFormSet, FakeInline, FakeForm
 from oauth2_provider.admin import Application, ApplicationAdmin
 
+from janus.app_settings import ALLAUTH_JANUS_ADMIN_CLASS
 from janus.models import Profile, ApplicationGroup, ProfilePermission, GroupPermission, ProfileGroup, \
     ApplicationExtension
 from django.contrib.auth.admin import UserAdmin
@@ -71,7 +73,7 @@ class ApplicationGroups(FakeInline):
 
 # Define a new User admin
 # noinspection PyRedeclaration
-class UserAdmin(UserAdmin):
+class JanusUserAdmin(UserAdmin):
     inlines = (ProfileInline, ApplicationGroups)
 
     list_display = UserAdmin.list_display + ('profile_groups',)
@@ -82,7 +84,10 @@ class UserAdmin(UserAdmin):
 
 # Re-register UserAdmin
 admin.site.unregister(get_user_model())
-admin.site.register(get_user_model(), UserAdmin)
+
+# overwrite admin class if user wants to
+JanusUserAdminClass = import_string(ALLAUTH_JANUS_ADMIN_CLASS)
+admin.site.register(get_user_model(), JanusUserAdminClass)
 
 """
 class ProfileAdmin(admin.ModelAdmin):
