@@ -220,7 +220,7 @@ class ProfileView(ProtectedResourceView):
             return json_data
         if replacement_mapping is not None:
             # iterate over replacements and apply them
-            replace_data = json.loads(replacement_mapping.profile_replace_json)
+            replace_data = json.loads(replacement_mapping)
             for key, value in replace_data.items():
                 if key in json_data:
                     json_data[value] = json_data.pop(key)
