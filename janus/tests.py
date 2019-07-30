@@ -7,7 +7,8 @@ from django.urls import reverse
 from django.utils.timezone import now
 from oauth2_provider.models import Application, AccessToken, Grant
 
-from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission, ApplicationGroup
+from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission, ApplicationGroup, \
+    ApplicationExtension
 from janus.views import ProfileView
 
 User = get_user_model()
@@ -229,6 +230,33 @@ class ProfileViewTests(TestCase):
         gp2.groups.add(app2_group1, app2_group2, app2_group3) # group3 is not supposed in here, simulate human error
 
 
+
+    def test_replace_keys_by_application(self):
+        data = {
+            'id': 1,
+            'more': 'data'
+            }
+
+        app_new = Application.objects.create(user=self.user_admin,
+                                                redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
+                                                client_type='confidential',
+                                                authorization_grant_type='authorization-code',
+                                                name='test_new', skip_authorization=True)
+
+        app_new_extension = ApplicationExtension.objects.create(
+            application=app_new,
+        )
+
+        self.assertEqual(data['id'], 1)
+        self.assertEqual(data['more'], 'data')
+        res = ProfileView._replace_keys_by_application(data, app_new)
+        self.assertEqual(res['id'], 1)
+        self.assertEqual(res['more'], 'data')
+
+        app_new_extension.profile_replace_json = json.dumps({'id': 'ident'})
+        res2 = ProfileView._replace_keys_by_application(data, app_new)
+        self.assertEqual(res2['ident'], 1)
+        self.assertEqual(res2['more'], 'data')
 
     def test_profile_view_groups(self):
         # check ProfileView

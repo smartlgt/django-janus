@@ -148,48 +148,79 @@ class ProfileView(ProtectedResourceView):
             if not token:
                 return self.error_response(OAuthToolkitError("No access token"))
 
-            is_superuser, can_authenticate = self.get_group_permissions(user, application)
+            data = self.generate_json_data(user, application)
+            data = self._replace_keys_by_application(data, application)
 
-            # if set the personal settings overwrite the user settings
-            pp_superuser, pp_authenticate = self.get_personal_permissions(user, application)
-            if pp_superuser is not None:
-                if type(pp_superuser) is bool:
-                    is_superuser = pp_superuser
-
-            if pp_authenticate is not None:
-                if type(pp_authenticate) is bool:
-                    can_authenticate = pp_authenticate
-
-            groups = self.get_group_list(user, application)
-
-            json_data = (
-                {
-                    'id': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'name': user.first_name + ' ' + user.last_name,
-                    'email': user.email,
-                    # ToDo: check the emails
-                    'email_verified': True,
-                    'is_superuser': is_superuser,
-                    'can_authenticate': can_authenticate,
-                    'groups': groups,
-                }
-            )
-            json_data = self._replace_json_ids(json_data, token)
-
-            return JsonResponse(json_data)
+            return JsonResponse(data)
 
         return self.error_response(OAuthToolkitError("No resource owner"))
 
+
+    def user_get_personal_permissions(self, user, application):
+        """
+        return permissions according to application settings, personal overwrite and default values
+        :param user:
+        :param application:
+        :return:
+        """
+        is_superuser, can_authenticate = self.get_group_permissions(user, application)
+
+        # if set the personal settings overwrite the user settings
+        pp_superuser, pp_authenticate = self.get_personal_permissions(user, application)
+        if pp_superuser is not None:
+            if type(pp_superuser) is bool:
+                is_superuser = pp_superuser
+
+        if pp_authenticate is not None:
+            if type(pp_authenticate) is bool:
+                can_authenticate = pp_authenticate
+
+        return is_superuser, can_authenticate
+
+
+    def generate_json_data(self, user, application):
+        """
+        generate the profile response json object
+        :param user:
+        :param application:
+        :return:
+        """
+
+        is_superuser, can_authenticate = self.get_personal_permissions(user, application)
+
+        groups = self.get_group_list(user, application)
+
+        data = {
+            'id': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'name': user.first_name + ' ' + user.last_name,
+            'email': user.email,
+            # ToDo: check the emails
+            'email_verified': True,
+            'is_superuser': is_superuser,
+            'can_authenticate': can_authenticate,
+            'groups': groups,
+        }
+
+        return data
+
     @staticmethod
-    def _replace_json_ids(json_data, token):
+    def _replace_keys_by_application(json_data, application):
+        """
+        replace json keys, according to the given replacement dic from the ApplicationExtension database model
+        :param json_data: json dict
+        :param application: allauth application
+        :return: processed json dict
+        """
         try:
-            replace = ApplicationExtension.objects.get(application=token.application)
+            extension = application.extension
+            replacement_mapping = extension.profile_replace_json
         except ObjectDoesNotExist:
             return json_data
-        if replace.profile_replace_json is not None:
-            replace_data = json.loads(replace.profile_replace_json)
+        if replacement_mapping is not None:
+            # iterate over replacements and apply them
+            replace_data = json.loads(replacement_mapping.profile_replace_json)
             for key, value in replace_data.items():
                 if key in json_data:
                     json_data[value] = json_data.pop(key)
