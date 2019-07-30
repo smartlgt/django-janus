@@ -136,6 +136,21 @@ custom profile endpoint, returns user profile information as json:
 }
 ````
 
+#### extend profile response
+overwrite settings like this:
+`ALLAUTH_JANUS_PROFILE_VIEW = 'app.views.ProfileViewCustom'`
+
+add a new profie view class and customize as needed
+```
+from janus.views import ProfileView
+class ProfileViewCustom(ProfileView):
+
+    def generate_json_data(self, user, application):
+        data = super().generate_json_data(user, application)
+        data['custom_values'] = user.custom_user_value
+        return data
+```
+
 ## configuration
 - navigate to `/admin/` to setup the OAuth2 uids and secrets.
 
