@@ -1,11 +1,9 @@
 import urllib
-
-import allauth
 from allauth.account.models import EmailAddress
 from allauth.account.utils import send_email_confirmation
 from django.shortcuts import redirect
 from oauth2_provider.models import get_application_model
-from oauth2_provider.views import AuthorizationView
+from oauth2_provider.views import AuthorizationView as AuthView
 
 from janus.models import ProfilePermission
 
@@ -30,7 +28,7 @@ def authentication_permitted(user, application):
     return True
 
 
-class AuthorizationView(AuthorizationView):
+class AuthorizationView(AuthView):
 
     # override the get request class, so we can deny the access before the validation starts
     def get(self, request, *args, **kwargs):

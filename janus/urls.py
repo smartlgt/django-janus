@@ -21,6 +21,7 @@ urlpatterns = [
     url(r'^o/revoke_token/?$', RevokeTokenView.as_view(), name="revoke-token"),
 
     url(r'^o/profile/?$', ProfileViewClass.as_view(), name="profile"),
+    url(r'^o/logout/?$', views.LogoutView.as_view(), name="remote_logout"),
     url(r'^o/not_authorized/$', views.not_authorized, name="not_authorized"),
 
     url(r'^o/restart_authorize/$', views.restart_authorize, name="restart_authorize"),

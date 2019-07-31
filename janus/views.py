@@ -1,14 +1,58 @@
+from django.contrib.sessions.models import Session
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from oauth2_provider.exceptions import OAuthToolkitError
-from oauth2_provider.models import AccessToken
+from oauth2_provider.models import AccessToken, RefreshToken
 from oauth2_provider.views import ProtectedResourceView
 import json
 
 from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission, \
     ApplicationExtension
 
+
+
+class LogoutView(ProtectedResourceView):
+    def get(self, request):
+        if request.resource_owner:
+            access_token = request.GET.get('access_token', None)
+            if not access_token:
+                access_token = request.META.get('HTTP_AUTHORIZATION', None)
+                if access_token:
+                    access_token = access_token.replace("Bearer ", "")
+
+            token = AccessToken.objects.filter(token=access_token).first()
+
+            if not token:
+                return self.error_response(OAuthToolkitError("No access token"))
+
+            # dont check for expired/valid, if the token was valid it's enough
+            #if not token.is_valid():
+            #    return self.error_response(OAuthToolkitError("invalid access token"))
+
+            user = token.user
+
+            self.clean_user_sessions(user)
+            self.clean_user_tokens(user)
+
+            return JsonResponse("OK")
+
+        return self.error_response(OAuthToolkitError("No resource owner"))
+
+    def clean_user_sessions(self, user):
+        now = timezone.now()
+        sessions = Session.objects.filter(expire_date__gt=now)
+
+        user_id2 = str(user.id)
+        for session in sessions:
+            user_id = session.get_decoded().get('_auth_user_id')
+            if user_id == user_id2:
+                session.delete()
+
+    def clean_user_tokens(self, user):
+        AccessToken.objects.filter(user=user).delete()
+        RefreshToken.objects.filter(user=user).delete()
 
 class ProfileView(ProtectedResourceView):
 
@@ -164,10 +208,15 @@ class ProfileView(ProtectedResourceView):
                     access_token = access_token.replace("Bearer ", "")
 
             token = AccessToken.objects.filter(token=access_token).first()
-            user = token.user
-            application = token.application
+
             if not token:
                 return self.error_response(OAuthToolkitError("No access token"))
+
+            if not token.is_valid():
+                return self.error_response(OAuthToolkitError("invalid access token"))
+
+            user = token.user
+            application = token.application
 
             data = self.generate_json_data(user, application)
             data = self._replace_keys_by_application(data, application)
