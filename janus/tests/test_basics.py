@@ -185,7 +185,7 @@ class UserAuthenticationTest(TestCase):
         response = c.get(profile_uri, dict(access_token=tokens['access_token']))
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        print(data)
+
         self.assertEqual(data['id'], 'alice')
         self.assertFalse(data['is_superuser'])
 
@@ -232,7 +232,7 @@ class UserAuthenticationTest(TestCase):
         response4 = c.get(profile_uri, dict(access_token=tokens['access_token']))
         self.assertEqual(response4.status_code, 200)
         data = json.loads(response4.content.decode('utf-8'))
-        print(data)
+
         self.assertEqual(data['id'], 'eve')
         self.assertTrue(data['is_superuser'])
 
