@@ -1,5 +1,7 @@
 import json
 from datetime import timedelta
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
@@ -49,6 +51,11 @@ class UserAuthenticationTest(TestCase):
         profile_3.group.add(user_group_2[0])
         profile_3.save()
 
+        user_4 = User.objects.create_user(username='notallowed', password='testjanus123')
+        profile_4 = Profile.objects.create(user=user_4)
+        profile_4.group.add(user_group_2[0])
+        profile_4.save()
+
         app = Application.objects.get_or_create(user=user_1,
                                                 redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
                                                 client_type='confidential',
@@ -60,6 +67,12 @@ class UserAuthenticationTest(TestCase):
                                                 authorization_grant_type='authorization-code',
                                                 name='test_all_superuser', skip_authorization=True)
 
+        forbidden_app = Application.objects.get_or_create(user=user_1,
+                                                redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
+                                                client_type='confidential',
+                                                authorization_grant_type='authorization-code',
+                                                name='test_forbidden', skip_authorization=True)
+
         gp_1 = GroupPermission.objects.get_or_create(profile_group=user_group_1[0], application=app[0], can_authenticate=True, is_superuser=True)
 
         gp_1_second_app = GroupPermission.objects.get_or_create(profile_group=user_group_2[0], application=second_app, can_authenticate=True, is_superuser=True)
@@ -68,9 +81,10 @@ class UserAuthenticationTest(TestCase):
 
         ProfilePermission.objects.create(profile=profile_3, application=app[0], is_superuser=True)
 
-        Grant.objects.create(user=user_1, code='abc', application=app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
-        Grant.objects.create(user=user_2, code='abcd', application=app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
-        Grant.objects.create(user=user_3, code='abcde', application=app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
+        #Grant.objects.create(user=user_1, code='abc', application=app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
+        #Grant.objects.create(user=user_2, code='abcd', application=app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
+        #Grant.objects.create(user=user_3, code='abcde', application=app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
+        #Grant.objects.create(user=user_4, code='abcdef', application=forbidden_app[0], expires=now() + timedelta(days=5), redirect_uri='https://localhost:8000/accounts/janus/login/callback/')
 
     def test_not_authenticated(self):
         c = Client()
@@ -96,8 +110,19 @@ class UserAuthenticationTest(TestCase):
         c.post(reverse('login'), dict(username='bob', password='testjanus123'))
 
         app = Application.objects.get(name='test')
+
+        # get an auth code
+        authorize_uri = reverse('authorize')
+        response = c.get(authorize_uri, dict(client_id=app.client_id, response_type="code"))
+        self.assertEqual(response.status_code, 302)
+
+        # lookup response code
+        parsed = urlparse.urlparse(response.url)
+        code = parse_qs(parsed.query)['code']
+
+
         token_url = reverse('token')
-        response = c.post(token_url, dict(grant_type='authorization_code', code='abc',
+        response = c.post(token_url, dict(grant_type='authorization_code', code=code,
                                           client_id=app.client_id, client_secret=app.client_secret,
                                           redirect_uri='https://localhost:8000/accounts/janus/login/callback/'))
         self.assertEqual(response.status_code, 200)
@@ -116,23 +141,44 @@ class UserAuthenticationTest(TestCase):
         self.assertEqual(data['id'], 'bob')
         self.assertTrue(data['is_superuser'])
 
+    def test_authenticate_notallowed(self):
+        # authenticate the user
+        c = Client()
+        c.post(reverse('login'), dict(username='notallowed', password='testjanus123'))
+        app = Application.objects.get(name='test_forbidden')
+
+        # get an auth code
+        # not permitted!!!
+        authorize_uri = reverse('authorize')
+        response = c.get(authorize_uri, dict(client_id=app.client_id, response_type="code"))
+        self.assertEqual(response.status_code, 302)
+
+        # ensure not allowed to login
+        self.assertEqual(response.url, reverse('not_authorized'))
+
     def test_authenticate_alice(self):
         # authenticate the user
         c = Client()
         c.post(reverse('login'), dict(username='alice', password='testjanus123'))
-
         app = Application.objects.get(name='test')
+
+        # get an auth code
+        authorize_uri = reverse('authorize')
+        response = c.get(authorize_uri, dict(client_id=app.client_id, response_type="code"))
+        self.assertEqual(response.status_code, 302)
+
+        # lookup response code
+        parsed = urlparse.urlparse(response.url)
+        code = parse_qs(parsed.query)['code']
+
         token_url = reverse('token')
-        response = c.post(token_url, dict(grant_type='authorization_code', code='abcd',
+        response = c.post(token_url, dict(grant_type='authorization_code', code=code,
                                           client_id=app.client_id, client_secret=app.client_secret,
                                           redirect_uri='https://localhost:8000/accounts/janus/login/callback/'))
         self.assertEqual(response.status_code, 200)
         tokens = json.loads(response.content.decode('utf-8'))
 
-        # get the app settings
-        authorize_uri = reverse('authorize')
-        response = c.get(authorize_uri, dict(client_id=app.client_id))
-        self.assertEqual(response.status_code, 302)
+
 
         # get the profile
         profile_uri = reverse('profile')
@@ -149,23 +195,43 @@ class UserAuthenticationTest(TestCase):
         c.post(reverse('login'), dict(username='eve', password='testjanus123'))
 
         app = Application.objects.get(name='test')
+
+        # get an auth code
+        authorize_uri = reverse('authorize')
+        response = c.get(authorize_uri, dict(client_id=app.client_id, response_type="code"))
+        self.assertEqual(response.status_code, 302)
+
+        # ensure not allowed to login
+        self.assertEqual(response.url, reverse('not_authorized'))
+
+        # set login allowed
+        u = User.objects.get(username='eve')
+        prof = Profile.objects.get(user=u)
+        per = ProfilePermission.objects.get(profile=prof, application=app)
+        per.can_authenticate = True
+        per.save()
+
+        response2 = c.get(authorize_uri, dict(client_id=app.client_id, response_type="code"))
+        self.assertEqual(response2.status_code, 302)
+
+        # lookup response code
+        # not permitted ("only" is super user)
+        parsed = urlparse.urlparse(response2.url)
+        code = parse_qs(parsed.query)['code']
+
+
         token_url = reverse('token')
-        response = c.post(token_url, dict(grant_type='authorization_code', code='abcde',
+        response3 = c.post(token_url, dict(grant_type='authorization_code', code=code,
                                           client_id=app.client_id, client_secret=app.client_secret,
                                           redirect_uri='https://localhost:8000/accounts/janus/login/callback/'))
-        self.assertEqual(response.status_code, 200)
-        tokens = json.loads(response.content.decode('utf-8'))
-
-        # get the app settings
-        authorize_uri = reverse('authorize')
-        response = c.get(authorize_uri, dict(client_id=app.client_id))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response3.status_code, 200)
+        tokens = json.loads(response3.content.decode('utf-8'))
 
         # get the profile
         profile_uri = reverse('profile')
-        response = c.get(profile_uri, dict(access_token=tokens['access_token']))
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content.decode('utf-8'))
+        response4 = c.get(profile_uri, dict(access_token=tokens['access_token']))
+        self.assertEqual(response4.status_code, 200)
+        data = json.loads(response4.content.decode('utf-8'))
         print(data)
         self.assertEqual(data['id'], 'eve')
         self.assertTrue(data['is_superuser'])
