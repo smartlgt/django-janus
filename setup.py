@@ -17,7 +17,7 @@ setup(
         "django>=2.0",
         "django-oauth-toolkit==1.3.0",
         "django-cors-middleware>=1.3.1",
-        "django_python3_ldap>=0.11.2",
+        "django_python3_ldap>=0.11.3",
         "django-allauth>=0.38.0",
         "django-fakeinline==0.1.1",
     ],
