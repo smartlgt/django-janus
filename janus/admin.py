@@ -49,6 +49,10 @@ class ApplicationGroupFormSet(FakeFormSetNew):
     </p>
     ''')
 
+    def is_multipart(self):
+        return False
+
+
     def get_applications(self):
         user = self.instance
 
