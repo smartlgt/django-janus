@@ -15,11 +15,11 @@ setup(
     include_package_data=True,
     install_requires=[
         "django>=2.0",
-        "django-oauth-toolkit==1.3.0",
+        "django-oauth-toolkit==1.3.2",
         "django-cors-middleware>=1.3.1",
         "django_python3_ldap>=0.11.3",
         "django-allauth>=0.38.0",
-        "django-fakeinline==0.1.1",
+        "django-fakeinline>=0.1.1",
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
