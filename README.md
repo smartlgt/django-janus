@@ -30,11 +30,16 @@ Set a fix site ID or init the database table via manage commands:
 SITE_ID = 1
 ```
 
-Oauth config & cors:
+Oauth config:
 ```
 OAUTH2_PROVIDER_APPLICATION_MODEL = 'oauth2_provider.Application'
+```
 
-CORS_ORIGIN_ALLOW_ALL = False
+cors for web apps:
+```
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_URLS_REGEX = r"^/oauth2/.*$"
+
 ```
 
 
