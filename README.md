@@ -16,6 +16,7 @@ INSTALLED_APPS = [
     'django_python3_ldap',
     
     'django.contrib.sites',
+    'corsheaders',
     'oauth2_provider',
     'allauth',
     'allauth.account',
@@ -37,7 +38,15 @@ OAUTH2_PROVIDER_APPLICATION_MODEL = 'oauth2_provider.Application'
 
 cors for web apps:
 ```
-CORS_ALLOW_ALL_ORIGINS = True
+MIDDLEWARE = (
+    # ...
+    'corsheaders.middleware.CorsMiddleware',
+    # ...
+)
+
+
+CORS_ORIGIN_ALLOW_ALL = True
+// now limit the allow all to the following path:
 CORS_URLS_REGEX = r"^/oauth2/.*$"
 
 ```
@@ -64,6 +73,16 @@ EMAIL_HOST_PASSWORD = '********'
 EMAIL_PORT = 465
 DEFAULT_FROM_EMAIL = 'name <mail@example.com>'
 
+```
+
+(recommended) cleanup old token
+```
+CELERY_BEAT_SCHEDULE = {
+    'cleanup_token': {
+        'task': 'janus.cleanup_token',
+        'schedule': crontab(minute='1', hour='6')
+    },
+}
 ```
 
 (optional) setup your ldap server
