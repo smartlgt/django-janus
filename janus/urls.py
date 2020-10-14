@@ -2,7 +2,7 @@
 """
 from django.conf.urls import url, include
 from django.utils.module_loading import import_string
-from oauth2_provider.views import TokenView, RevokeTokenView
+from oauth2_provider.views import TokenView, RevokeTokenView, IntrospectTokenView
 
 from janus import views
 from janus.oauth2.views import AuthorizationView
@@ -19,6 +19,7 @@ urlpatterns = [
 
     url(r'^o/token/?$', TokenView.as_view(), name="token"),
     url(r'^o/revoke_token/?$', RevokeTokenView.as_view(), name="revoke-token"),
+    url(r"^introspect/?$", IntrospectTokenView.as_view(), name="introspect"),
 
     url(r'^o/profile/?$', ProfileViewClass.as_view(), name="profile"),
     url(r'^o/logout/?$', views.LogoutView.as_view(), name="remote_logout"),
