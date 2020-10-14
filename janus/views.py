@@ -51,8 +51,8 @@ class LogoutView(View):
         AccessToken.objects.filter(user=user).delete()
         RefreshToken.objects.filter(user=user).delete()
 
-class ProfileView(ProtectedResourceView):
 
+class ProfileView(ProtectedResourceView):
 
     def get_profile_memberships(self, user):
 
