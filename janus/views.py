@@ -237,6 +237,7 @@ class ProfileView(ProtectedResourceView):
 
         data = {
             'id': user.username,
+            'internal_id': user.id,
             'first_name': user.first_name,
             'last_name': user.last_name,
             'name': user.first_name + ' ' + user.last_name,
