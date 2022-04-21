@@ -14,7 +14,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "django>=2.0",
+        "django>=2.0,<4.0",
         "django-oauth-toolkit==1.3.2",
         "django-cors-middleware>=1.5.0",
         "django_python3_ldap>=0.11.3",
