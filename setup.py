@@ -9,7 +9,7 @@ setup(
     description="Janus is a Single sign-on (SSO) system based on django.",
     author="Daniel Leinfelder",
     author_email="daniel@smart-lgt.com",
-    url="http://github.com/smartlgt/janus_package",
+    url="https://github.com/smartlgt/django-janus",
     zip_safe=False,
     packages=find_packages(),
     include_package_data=True,
