@@ -71,11 +71,12 @@ class ProfileView(ProtectedResourceView):
         :param token:
         :return:
         """
+        is_staff = False
         is_superuser = False
         can_authenticate = False
 
         if not user.is_authenticated:
-            return is_superuser, can_authenticate
+            return can_authenticate, is_staff, is_superuser
 
         all_groups = self.get_profile_memberships(user)
 
@@ -85,13 +86,12 @@ class ProfileView(ProtectedResourceView):
                 continue
             elif gp.count() == 1:
                 gp = gp.first()
-                if gp.can_authenticate:
-                    can_authenticate = True
-                if gp.is_superuser:
-                    is_superuser = True
+                can_authenticate = gp.can_authenticate
+                is_staff = gp.is_staff
+                is_superuser = gp.is_superuser
             else:
                 print('We have a problem')
-        return is_superuser, can_authenticate
+        return can_authenticate, is_staff, is_superuser
 
     def get_personal_permissions(self, user, application):
         """
@@ -100,18 +100,18 @@ class ProfileView(ProtectedResourceView):
         :param token:
         :return:
         """
+        is_staff = None
         is_superuser = None
         can_authenticate = None
         if not user.is_authenticated:
-            return is_superuser, can_authenticate
+            return can_authenticate, is_staff, is_superuser
 
         pp = ProfilePermission.objects.filter(profile__user=user, application=application).first()
         if pp:
-            if pp.is_superuser:
-                is_superuser = True
-            if pp.can_authenticate:
-                can_authenticate = True
-        return is_superuser, can_authenticate
+            is_staff = True if pp.is_staff else None
+            is_superuser = True if pp.is_superuser else None
+            can_authenticate = True if pp.can_authenticate else None
+        return can_authenticate, is_staff, is_superuser
 
 
     def get_profile_group_memberships(self, user, application):
@@ -169,19 +169,20 @@ class ProfileView(ProtectedResourceView):
         :param application:
         :return:
         """
-        is_superuser, can_authenticate = self.get_group_permissions(user, application)
+        can_authenticate, is_staff, is_superuser = self.get_group_permissions(user, application)
 
         # if set the personal settings overwrite the user settings
-        pp_superuser, pp_authenticate = self.get_personal_permissions(user, application)
+        pp_authenticate, pp_staff, pp_superuser = self.get_personal_permissions(user, application)
+        if pp_staff is not None:
+            is_staff = pp_staff
+
         if pp_superuser is not None:
-            if type(pp_superuser) is bool:
-                is_superuser = pp_superuser
+            is_superuser = pp_superuser
 
         if pp_authenticate is not None:
-            if type(pp_authenticate) is bool:
-                can_authenticate = pp_authenticate
+            can_authenticate = pp_authenticate
 
-        return is_superuser, can_authenticate
+        return can_authenticate, is_staff, is_superuser
 
 
     def get_group_list(self, user, application):
@@ -231,7 +232,7 @@ class ProfileView(ProtectedResourceView):
         :return:
         """
 
-        is_superuser, can_authenticate = self.get_permissions(user, application)
+        can_authenticate, is_staff, is_superuser = self.get_permissions(user, application)
 
         groups = self.get_group_list(user, application)
 
@@ -244,6 +245,7 @@ class ProfileView(ProtectedResourceView):
             'email': user.email,
             # ToDo: check the emails
             'email_verified': True,
+            'is_staff': is_staff,
             'is_superuser': is_superuser,
             'can_authenticate': can_authenticate,
             'groups': groups,

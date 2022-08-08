@@ -62,6 +62,7 @@ class ProfilePermission(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
     # this defines if the oauth module issues an authentication token
     can_authenticate = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     groups = models.ManyToManyField(ApplicationGroup, blank=True)
 
@@ -74,6 +75,7 @@ class GroupPermission(models.Model):
     profile_group = models.ForeignKey(ProfileGroup, on_delete=models.CASCADE)
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
     can_authenticate = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     # group also work additive, if the profile is in multiple groups, we collect alle the groups and return them
     # the application must deal with inconsistency
