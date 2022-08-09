@@ -120,7 +120,7 @@ admin.site.register(ApplicationGroup, ApplicationGroupAdmin)
 
 
 class ProfilePermissionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'profile', 'application', 'can_authenticate', 'is_superuser',)
+    list_display = ('id', 'profile', 'application', 'can_authenticate', 'is_staff', 'is_superuser',)
     list_display_links = ('id',)
     search_fields = ('id', 'profile', 'application',)
 
@@ -128,9 +128,9 @@ admin.site.register(ProfilePermission, ProfilePermissionAdmin)
 
 
 class GroupPermissionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'application', 'can_authenticate', 'is_superuser',)
+    list_display = ('id', 'profile_group', 'application', 'can_authenticate', 'is_staff', 'is_superuser',)
     list_display_links = ('id',)
-    search_fields = ('id', 'profile', 'application',)
+    search_fields = ('id', 'profile_group', 'application',)
 
 admin.site.register(GroupPermission, GroupPermissionAdmin)
 
