@@ -1,11 +1,9 @@
-import json
-
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.template import Template
 from django.utils.module_loading import import_string
 from fakeinline.datastructures import FakeFormSet, FakeInline, FakeForm
-from oauth2_provider.admin import Application, ApplicationAdmin
+from oauth2_provider.admin import get_application_model, ApplicationAdmin
 
 from janus.app_settings import ALLAUTH_JANUS_ADMIN_CLASS
 from janus.models import Profile, ApplicationGroup, ProfilePermission, GroupPermission, ProfileGroup, \
@@ -40,7 +38,7 @@ class ApplicationGroupFormSet(FakeFormSetNew):
     template = Template('''
     <p>Debug applied application groups (save to see the update!):
     {% for key, value in inline_admin_formset.formset.get_applications.items %}
-    <p>applicatio "{{ key }}":<br/>
+    <p>application "{{ key }}":<br/>
     {{ value }}
     </p>
     {% endfor %}
@@ -61,9 +59,7 @@ class ApplicationGroupFormSet(FakeFormSetNew):
 
         ret = {}
 
-        from oauth2_provider.models import Application as Application2
-
-        applications = Application2.objects.all()
+        applications = get_application_model().objects.all()
 
         for application in applications:
             ret[application.name] = pv.get_group_list(user, application)
@@ -135,7 +131,7 @@ class GroupPermissionAdmin(admin.ModelAdmin):
 admin.site.register(GroupPermission, GroupPermissionAdmin)
 
 ############################ Application Admin ##################
-admin.site.unregister(Application)
+admin.site.unregister(get_application_model())
 
 class ApplicationExtensionInline(admin.StackedInline):
     model = ApplicationExtension
@@ -152,4 +148,4 @@ class ApplicationAdminJanus(ApplicationAdmin):
     email_required.boolean = True
 
 
-admin.site.register(Application, ApplicationAdminJanus)
+admin.site.register(get_application_model(), ApplicationAdminJanus)

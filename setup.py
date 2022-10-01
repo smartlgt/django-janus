@@ -14,11 +14,10 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "django>=2.0,<4.0",
-        "django-oauth-toolkit==1.3.2",
+        "django>=3.2,<4.1",
+        "django-oauth-toolkit==2.1.0",
         "django-cors-middleware>=1.5.0",
-        "django_python3_ldap>=0.11.3,<0.15.0",
-        "django-allauth>=0.42.0",
+        "django-allauth>=0.48.0",
         "django-fakeinline>=0.1.1",
     ],
     classifiers=[
@@ -28,9 +27,9 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         "Framework :: Django",
     ]
 )
