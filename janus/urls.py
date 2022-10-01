@@ -1,6 +1,5 @@
-"""janus URL Configuration
-"""
-from django.conf.urls import url, include
+from django.conf.urls import include
+from django.urls import path, re_path
 from django.utils.module_loading import import_string
 from oauth2_provider.views import TokenView, RevokeTokenView, IntrospectTokenView
 
@@ -15,18 +14,20 @@ ProfileViewClass = import_string(janus_app_settings.ALLAUTH_JANUS_PROFILE_VIEW)
 
 urlpatterns = [
     # use custom view, to enforce the user authenticate permissions
-    url(r'^o/authorize/?$', AuthorizationView.as_view(), name="authorize"),
+    re_path(r'^o/authorize/?$', AuthorizationView.as_view(), name="authorize"),
 
-    url(r'^o/token/?$', TokenView.as_view(), name="token"),
-    url(r'^o/revoke_token/?$', RevokeTokenView.as_view(), name="revoke-token"),
-    url(r"^introspect/?$", IntrospectTokenView.as_view(), name="introspect"),
+    # default oauth2_provider.url.base_urlpatterns
+    re_path(r'^o/token/?$', TokenView.as_view(), name="token"),
+    re_path(r'^o/revoke_token/?$', RevokeTokenView.as_view(), name="revoke-token"),
+    re_path(r"^introspect/?$", IntrospectTokenView.as_view(), name="introspect"),
 
-    url(r'^o/profile/?$', ProfileViewClass.as_view(), name="profile"),
-    url(r'^o/logout/?$', views.LogoutView.as_view(), name="remote_logout"),
-    url(r'^o/not_authorized/$', views.not_authorized, name="not_authorized"),
+    # custom urls
+    re_path(r'^o/profile/?$', ProfileViewClass.as_view(), name="profile"),
+    re_path(r'^o/logout/?$', views.LogoutView.as_view(), name="remote_logout"),
+    re_path(r'^o/not_authorized/$', views.not_authorized, name="not_authorized"),
 
-    url(r'^o/restart_authorize/$', views.restart_authorize, name="restart_authorize"),
+    re_path(r'^o/restart_authorize/$', views.restart_authorize, name="restart_authorize"),
 
-    url('^accounts/', include('django.contrib.auth.urls')),
-    url(r'', views.index, name='index'),
+    path('accounts/', include('django.contrib.auth.urls')),
+    path('', views.index, name='index'),
 ]
