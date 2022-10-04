@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 import urllib.parse as urlparse
+from unittest import mock
 from urllib.parse import parse_qs
 
 from django.contrib.auth import get_user_model
@@ -352,5 +353,147 @@ class ProfileViewTests(TestCase):
         self.assertAlmostEqual(len(list_empty_again), 0)
 
 
+class GroupTestFlags(TestCase):
+    def setUp(self):
+        self.user_admin = User.objects.create(username='admin')
+        self.user_staff = User.objects.create(username='help-desk-user')
+        self.user_customer = User.objects.create(username='customer')
+
+        # init some profile groups
+        self.group_default = ProfileGroup.objects.create(name='default', default=True)
+        self.group_superuser = ProfileGroup.objects.create(name='superuser_group')
+        self.group_staff = ProfileGroup.objects.create(name='staff_group')
+        self.group_customer = ProfileGroup.objects.create(name='customer_group')
+
+        # init user profiles
+        Profile.create_default_profile(self.user_admin)
+        Profile.create_default_profile(self.user_staff)
+        Profile.create_default_profile(self.user_customer)
+
+        self.app = Application.objects.create(user=self.user_admin,
+                                            redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
+                                            client_type='confidential',
+                                            authorization_grant_type='authorization-code',
+                                            name='test', skip_authorization=True)
 
 
+        # init a group permission for the staff group and check the profile response
+        gp1 = GroupPermission.objects.create(profile_group=self.group_staff, application=self.app, is_staff=True)
+
+        # add user to default and to group_staff
+        self.user_staff.profile.group.add(self.group_staff)
+
+
+    def test_personal_permissions(self):
+        pv = ProfileView()
+
+        self.assertEqual(True, self.user_staff.is_authenticated)
+
+        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        self.assertEqual((None, None, None), pvr)
+
+
+        pp = ProfilePermission.objects.create(profile=self.user_staff.profile, application=self.app, can_authenticate=True)
+        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        self.assertEqual((True, None, None), pvr)
+
+        pp.is_staff = True
+        pp.save()
+
+        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        self.assertEqual((True, True, None), pvr)
+
+        pp.is_staff = False
+        pp.is_superuser = True
+        pp.save()
+
+        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        self.assertEqual((True, None, True), pvr)
+
+
+class PermissionViewTests(TestCase):
+    def setUp(self):
+        self.group_default = ProfileGroup.objects.create(name='default', default=True)
+        self.group_1 = ProfileGroup.objects.create(name='Gruppe 1', default=False)
+        self.user = User.objects.create(username='user')
+        self.profile = Profile.create_default_profile(self.user)
+        self.profile.group.add(self.group_default)
+        self.profile.group.add(self.group_1)
+
+        self.application_1 = Application.objects.create(user=None,
+                                                        redirect_uris='https://localhost:8000/accounts/janus/login/callback/',
+                                                        client_type='confidential',
+                                                        authorization_grant_type='authorization-code',
+                                                        name='test', skip_authorization=True)
+
+        self.gp_default = GroupPermission.objects.create(profile_group=self.group_default,
+                                       application=self.application_1,
+                                       can_authenticate=False,
+                                       is_staff=False,
+                                       is_superuser=False)
+
+        self.gp1 = GroupPermission.objects.create(profile_group=self.group_1,
+                                       application=self.application_1,
+                                       can_authenticate=True,
+                                       is_staff=False,
+                                       is_superuser=True)
+
+    def test_group_permissions(self):
+        pv = ProfileView()
+        result = pv.get_group_permissions(self.user, self.application_1)
+        self.assertEqual((True, False, True), result)
+
+        self.gp1.is_staff = True
+        self.gp1.save()
+        result = pv.get_group_permissions(self.user, self.application_1)
+        self.assertEqual((True, True, True), result)
+
+        self.gp1.is_superuser = False
+        self.gp1.save()
+        result = pv.get_group_permissions(self.user, self.application_1)
+        self.assertEqual((True, True, False), result)
+
+        members = pv.get_profile_memberships(self.user)
+
+        with mock.patch('janus.views.ProfileView.get_profile_memberships') as m:
+            m.return_value = reversed(members)
+
+            pv = ProfileView()
+            result = pv.get_group_permissions(self.user, self.application_1)
+            self.assertEqual((True, True, False), result)
+
+        with mock.patch('janus.views.ProfileView.get_profile_memberships') as m:
+            m.return_value = members
+
+            pv = ProfileView()
+            result = pv.get_group_permissions(self.user, self.application_1)
+            self.assertEqual((True, True, False), result)
+
+    def test_permissions(self):
+        pv = ProfileView()
+        result = pv.get_permissions(self.user, self.application_1)
+        self.assertEqual((True, False, True), result)
+
+        self.gp1.is_staff = True
+        self.gp1.save()
+
+        result = pv.get_permissions(self.user, self.application_1)
+        self.assertEqual((True, True, True), result)
+
+
+    def test_json(self):
+        pv = ProfileView()
+        data = pv.generate_json_data(self.user, self.application_1)
+
+        self.assertEqual(True, data.get('is_superuser'))
+        self.assertEqual(False, data.get('is_staff'))
+
+        data = pv._replace_keys_by_application(data, self.application_1)
+        self.assertEqual(True, data.get('is_superuser'))
+        self.assertEqual(False, data.get('is_staff'))
+
+
+    def test_membership(self):
+        pv = ProfileView()
+        ret = pv.get_profile_memberships(self.user)
+        print(ret)

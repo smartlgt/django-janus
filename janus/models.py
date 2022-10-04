@@ -32,6 +32,7 @@ class Profile(models.Model):
         if default_groups.exists():
             p.group.add(default_groups.latest('id'))
         p.save()
+        return p
 
 
 class ProfileGroup(models.Model):

@@ -86,9 +86,12 @@ class ProfileView(ProtectedResourceView):
                 continue
             elif gp.count() == 1:
                 gp = gp.first()
-                can_authenticate = gp.can_authenticate
-                is_staff = gp.is_staff
-                is_superuser = gp.is_superuser
+                if gp.can_authenticate:
+                    can_authenticate = True
+                if gp.is_staff:
+                    is_staff = True
+                if gp.is_superuser:
+                    is_superuser = True
             else:
                 print('We have a problem')
         return can_authenticate, is_staff, is_superuser
