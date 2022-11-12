@@ -10,6 +10,7 @@ from janus.models import Profile, ApplicationGroup, ProfilePermission, GroupPerm
     ApplicationExtension
 from django.contrib.auth.admin import UserAdmin
 
+from janus.oauth2.util import get_group_list
 
 
 ###################################################
@@ -54,15 +55,12 @@ class ApplicationGroupFormSet(FakeFormSetNew):
     def get_applications(self):
         user = self.instance
 
-        from janus.views import ProfileView
-        pv = ProfileView()
-
         ret = {}
 
         applications = get_application_model().objects.all()
 
         for application in applications:
-            ret[application.name] = pv.get_group_list(user, application)
+            ret[application.name] = get_group_list(user, application)
 
         return ret
 
