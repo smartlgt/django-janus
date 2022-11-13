@@ -1,5 +1,8 @@
 # setup
 
+django-janus is an [OAuth2](https://www.rfc-editor.org/rfc/rfc6749) authorization server.
+The [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html) and [Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html) Standards are implemented.
+
 ## installation
 
 `pip install git+https://github.com/smartlgt/django-janus#egg=django-janus`
@@ -8,7 +11,7 @@
 
 add to installed apps:
 
-```
+```python3
 INSTALLED_APPS = [
     # other apps
     
@@ -27,17 +30,17 @@ INSTALLED_APPS = [
 ```
 
 Set a fix site ID or init the database table via manage commands:
-```
+```python3
 SITE_ID = 1
 ```
 
 Oauth config:
-```
+```python3
 OAUTH2_PROVIDER_APPLICATION_MODEL = 'oauth2_provider.Application'
 ```
 
 cors for web apps:
-```
+```python3
 MIDDLEWARE = (
     # ...
     'corsheaders.middleware.CorsMiddleware',
@@ -54,7 +57,7 @@ CORS_URLS_REGEX = r"^/oauth2/.*$"
 
 its possible to use any social login, reffer the allauth docs for configuration.
 Allauth config e.G.:
-```
+```python3
 ACCOUNT_EMAIL_REQUIRED = False
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_EMAIL_VERIFICATION = "optional"
@@ -65,7 +68,7 @@ ACCOUNT_LOGOUT_ON_GET = True
 ```
 
 E-Mail config e.G.:
-```
+```python3
 EMAIL_USE_SSL = True
 EMAIL_HOST = 'smtp.example.com'
 EMAIL_HOST_USER = 'mail@example.com'
@@ -76,7 +79,7 @@ DEFAULT_FROM_EMAIL = 'name <mail@example.com>'
 ```
 
 (recommended) cleanup old token
-```
+```python3
 CELERY_BEAT_SCHEDULE = {
     'cleanup_token': {
         'task': 'janus.tasks.cleanup_token',
@@ -85,8 +88,26 @@ CELERY_BEAT_SCHEDULE = {
 }
 ```
 
-(optional) setup your ldap server
+(optional) enable and configure OIDC
+<!-- TODO: the meaning of the custom claims should probably be documented in more detail. -->
+```python3
+# Scope in which additional claims are included. These claims are is_staff, is_superuser and groups.
+JANUS_OIDC_SCOPE_EXTRA = "profile" 
+OAUTH2_PROVIDER = {
+    "OIDC_ENABLED": True, # Enable OIDC
+    "OIDC_ISS_ENDPOINT": "[...]",
+    "OAUTH2_VALIDATOR_CLASS": "janus.oauth2.validator.JanusOAuth2Validator",
+    "OIDC_RSA_PRIVATE_KEY": "[...]", # Generate with `openssl genrsa -out oidc.key 4096`
+    "SCOPES": { # Claims are returned based on granted scopes. See OIDC Core section 5.4.
+        "openid": "Connect with your Account",
+        "profile": "Access your Name and Username",
+        "email": "Access your Mail-Address",
+    }
+}
 ```
+
+(optional) setup your ldap server
+```python3
 # The URL of the LDAP server.
 LDAP_AUTH_URL = "ldap.exmaple.com"
 
@@ -114,7 +135,7 @@ AUTHENTICATION_BACKENDS = (
 
 ## urls.py
 
-```
+```python3
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
@@ -125,7 +146,7 @@ urlpatterns = [
 
 ## first run
 migrate your database
-```
+```bash
 ./manage.py migrate
 ```
 
@@ -134,7 +155,7 @@ if you open a browser and look at the index page you should see `Hello from janu
 
 # usage
 
-## endpoints
+## OAuth2 endpoints
 ### o/authorize/
 OAuth2 authorize endpoint
 
@@ -143,6 +164,9 @@ OAuth2 access token endpoint
 
 ### o/revoke_token/
 OAuth2 revoke access or refresh tokens
+
+### o/introspect/
+OAuth2 introspection endpoint. Requires `introspect` scope.
 
 ### o/profile/
 custom profile endpoint, returns user profile information as json:
@@ -165,7 +189,7 @@ overwrite settings like this:
 `ALLAUTH_JANUS_PROFILE_VIEW = 'app.views.ProfileViewCustom'`
 
 add a new profie view class and customize as needed
-```
+```python3
 from janus.views import ProfileView
 class ProfileViewCustom(ProfileView):
 
@@ -175,10 +199,20 @@ class ProfileViewCustom(ProfileView):
         return data
 ```
 
+## OIDC endpoints
+### `o/userinfo/`
+UserInfo endpoint as per section 5.3 of OpenID Connect Core 1.0.
+
+### `o/.well-known/openid-configuration/`
+OpenID Provider Configuration endpoint as per section 4 of OpenID Connect Discovery 1.0.
+
+### `o/.well-known/jwks.json`
+JSON Web Key Set endpoint as per section 3 of OpenID Connect Discovery 1.0.
+
 ## admin custom user class
 set `ALLAUTH_JANUS_ADMIN_CLASS = 'app.admin_custom.CustomUserAdmin'`
 
-```
+```python3
 from janus.admin import JanusUserAdmin
 class CustomUserAdmin(JanusUserAdmin):
 
