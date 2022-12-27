@@ -185,6 +185,7 @@ custom profile endpoint, returns user profile information as json:
 ````
 
 #### extend profile response
+##### Old
 overwrite settings like this:
 `ALLAUTH_JANUS_PROFILE_VIEW = 'app.views.ProfileViewCustom'`
 
@@ -198,6 +199,10 @@ class ProfileViewCustom(ProfileView):
         data['custom_values'] = user.custom_user_value
         return data
 ```
+
+##### New (OIDC)
+Extend `JanusOAuth2Validator`. You can then modify the response by [adding additional information to the `UserInfo` service directly](https://django-oauth-toolkit.readthedocs.io/en/latest/oidc.html#adding-information-to-the-userinfo-service) or by [adding claims to the ID token](https://django-oauth-toolkit.readthedocs.io/en/latest/oidc.html#adding-claims-to-the-id-token).
+Then set the modified Validator as `OAUTH2_VALIDATOR_CLASS` in the `OAUTH2_PROVIDER` in the settings. See also the section on `enable and configure OIDC` for the configuration of the settings.
 
 ## OIDC endpoints
 ### `o/userinfo/`
