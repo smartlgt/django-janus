@@ -12,6 +12,8 @@ from oauth2_provider.models import Application, AccessToken, Grant
 
 from janus.models import ProfileGroup, Profile, GroupPermission, ProfilePermission, ApplicationGroup, \
     ApplicationExtension
+from janus.oauth2.util import get_profile_group_memberships, get_personal_permissions, get_group_permissions, \
+    get_profile_memberships, get_permissions
 from janus.views import ProfileView
 
 User = get_user_model()
@@ -327,29 +329,28 @@ class ProfileViewTests(TestCase):
 
     def test_profile_view_groups(self):
         # check ProfileView
-        pv = ProfileView()
 
         # add users to groups
         self.user_staff.profile.group.add(self.group_staff)
         self.user_staff.profile.group.add(self.group_customer)
 
-        list_group_names = pv.get_profile_group_memberships(self.user_staff, self.application_one)
+        list_group_names = get_profile_group_memberships(self.user_staff, self.application_one)
         self.assertIn("django_user_staff", list_group_names)
         self.assertIn("django_customer", list_group_names)
 
 
-        list_empty_groups = pv.get_profile_group_memberships(self.user_customer, self.application_one)
+        list_empty_groups = get_profile_group_memberships(self.user_customer, self.application_one)
         self.assertAlmostEqual(len(list_empty_groups), 0)
 
 
         # test super user has on app2 -> group1, group2
         self.user_admin.profile.group.add(self.group_superuser)
-        list_two_not_three = pv.get_profile_group_memberships(self.user_admin, self.application_two)
+        list_two_not_three = get_profile_group_memberships(self.user_admin, self.application_two)
         self.assertIn("group1", list_two_not_three)
         self.assertIn("group2", list_two_not_three)
         self.assertNotIn("group3", list_two_not_three)
         # also group3 is only linked to the wrong app so its also not present in the desired app
-        list_empty_again = pv.get_profile_group_memberships(self.user_admin, self.application_one)
+        list_empty_again = get_profile_group_memberships(self.user_admin, self.application_one)
         self.assertAlmostEqual(len(list_empty_again), 0)
 
 
@@ -385,29 +386,27 @@ class GroupTestFlags(TestCase):
 
 
     def test_personal_permissions(self):
-        pv = ProfileView()
-
         self.assertEqual(True, self.user_staff.is_authenticated)
 
-        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        pvr = get_personal_permissions(self.user_staff, self.app)
         self.assertEqual((None, None, None), pvr)
 
 
         pp = ProfilePermission.objects.create(profile=self.user_staff.profile, application=self.app, can_authenticate=True)
-        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        pvr = get_personal_permissions(self.user_staff, self.app)
         self.assertEqual((True, None, None), pvr)
 
         pp.is_staff = True
         pp.save()
 
-        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        pvr = get_personal_permissions(self.user_staff, self.app)
         self.assertEqual((True, True, None), pvr)
 
         pp.is_staff = False
         pp.is_superuser = True
         pp.save()
 
-        pvr = pv.get_personal_permissions(self.user_staff, self.app)
+        pvr = get_personal_permissions(self.user_staff, self.app)
         self.assertEqual((True, None, True), pvr)
 
 
@@ -439,45 +438,43 @@ class PermissionViewTests(TestCase):
                                        is_superuser=True)
 
     def test_group_permissions(self):
-        pv = ProfileView()
-        result = pv.get_group_permissions(self.user, self.application_1)
+        result = get_group_permissions(self.user, self.application_1)
         self.assertEqual((True, False, True), result)
 
         self.gp1.is_staff = True
         self.gp1.save()
-        result = pv.get_group_permissions(self.user, self.application_1)
+        result = get_group_permissions(self.user, self.application_1)
         self.assertEqual((True, True, True), result)
 
         self.gp1.is_superuser = False
         self.gp1.save()
-        result = pv.get_group_permissions(self.user, self.application_1)
+        result = get_group_permissions(self.user, self.application_1)
         self.assertEqual((True, True, False), result)
 
-        members = pv.get_profile_memberships(self.user)
+        members = get_profile_memberships(self.user)
 
         with mock.patch('janus.views.ProfileView.get_profile_memberships') as m:
             m.return_value = reversed(members)
 
             pv = ProfileView()
-            result = pv.get_group_permissions(self.user, self.application_1)
+            result = get_group_permissions(self.user, self.application_1)
             self.assertEqual((True, True, False), result)
 
         with mock.patch('janus.views.ProfileView.get_profile_memberships') as m:
             m.return_value = members
 
             pv = ProfileView()
-            result = pv.get_group_permissions(self.user, self.application_1)
+            result = get_group_permissions(self.user, self.application_1)
             self.assertEqual((True, True, False), result)
 
     def test_permissions(self):
-        pv = ProfileView()
-        result = pv.get_permissions(self.user, self.application_1)
+        result = get_permissions(self.user, self.application_1)
         self.assertEqual((True, False, True), result)
 
         self.gp1.is_staff = True
         self.gp1.save()
 
-        result = pv.get_permissions(self.user, self.application_1)
+        result = get_permissions(self.user, self.application_1)
         self.assertEqual((True, True, True), result)
 
 
@@ -494,6 +491,5 @@ class PermissionViewTests(TestCase):
 
 
     def test_membership(self):
-        pv = ProfileView()
-        ret = pv.get_profile_memberships(self.user)
+        ret = get_profile_memberships(self.user)
         print(ret)
